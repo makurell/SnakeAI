@@ -1,6 +1,7 @@
 import pygame
 from snake import Field, Pos
 
+COL_BACK0 = (44,45,44)
 COL_BACK1 = (66,67,65)
 COL_BACK2 = (59,59,58)
 COL_FOOD = (242,95,92)
@@ -15,12 +16,17 @@ class Engine:
         self.cell_width = 30
 
         # pygame setup
-        self.screen = pygame.display.set_mode((self.cell_width*self.field.width,
-                                               self.cell_width*self.field.height))
+        self.game_surface = pygame.Surface((self.cell_width * self.field.width,
+                                                    self.cell_width * self.field.height))
+        self.stats_surface = pygame.Surface((self.game_surface.get_width(), 34))
+
+        self.screen:pygame.Surface = pygame.display.set_mode(
+            (self.game_surface.get_width(),
+             self.game_surface.get_height()+self.stats_surface.get_height()))
         pygame.display.set_caption('SnakeAI')
 
         pygame.font.init()
-        self.font1 = pygame.font.SysFont('Arial',15)
+        self.font1 = pygame.font.SysFont('Arial',20)
 
     def run(self):
         while True:
@@ -53,10 +59,19 @@ class Engine:
 
         self.field.step()
 
+    def __draw_stats(self):
+        self.stats_surface.fill(COL_BACK0)
+
+        avg_eat_timing = round(sum(self.field.eat_timings)/len(self.field.eat_timings))
+        text = 'Eaten: '+str(self.field.eaten) + '  '+\
+               'Avg Steps: ' + str(avg_eat_timing)
+        self.stats_surface.blit(self.font1.render(text,False,
+                                                  (255,255,255)),(10,4))
+
     def __draw_backg(self):
         for row in range(self.field.height):
             for col in range(self.field.width):
-                pygame.draw.rect(self.screen,
+                pygame.draw.rect(self.game_surface,
                                  (COL_BACK1 if ((col+row)%2==0) else COL_BACK2),
                                  pygame.Rect(col*self.cell_width,
                                              row*self.cell_width,
@@ -64,6 +79,7 @@ class Engine:
                                              self.cell_width))
 
     def draw(self):
+        self.__draw_stats()
         self.__draw_backg()
         for row in range(self.field.height):
             for col in range(self.field.width):
@@ -74,11 +90,14 @@ class Engine:
                                    self.cell_width)
 
                 if cur in self.field.snake_arr:
-                    pygame.draw.rect(self.screen,COL_SNAKE,rect)
+                    pygame.draw.rect(self.game_surface, COL_SNAKE, rect)
                 elif cur == self.field.food_pos:
-                    pygame.draw.rect(self.screen,COL_FOOD,rect)
+                    pygame.draw.rect(self.game_surface, COL_FOOD, rect)
                 else:
                     pass
+
+        self.screen.blit(self.stats_surface,(0,0))
+        self.screen.blit(self.game_surface,(0,self.stats_surface.get_height()))
 
 if __name__ == '__main__':
     Engine().run()

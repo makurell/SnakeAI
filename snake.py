@@ -27,6 +27,9 @@ class Field:
         self.height = height
 
         # init
+        random.seed(0)
+        self.eat_timings = [0] # no steps taken to eat (for each eat)
+
         self.game_over = False
         self.eaten = 0
         self.food_pos = None
@@ -74,9 +77,11 @@ class Field:
         self.snake_arr.append(newpos)
         if not newpos == self.food_pos:
             del self.snake_arr[0]
+            self.eat_timings[-1]+=1
         else:
             self.eaten+=1
             self.__spawn_food()
+            self.eat_timings.append(0)
 
         self.prev_snake_dir = self.snake_dir
 
