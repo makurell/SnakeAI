@@ -27,11 +27,13 @@ class Field:
         self.height = height
 
         # init
+        self.game_over = False
         self.eaten = 0
         self.food_pos = None
 
         self.snake_arr = []
         self.snake_dir = 2 # up, down, right, left
+        self.prev_snake_dir = 0
 
         # init snake_arr
         for i in range(3):
@@ -41,8 +43,8 @@ class Field:
 
     def __spawn_food(self):
         while True:
-            self.food_pos = Pos(random.randint(0,self.width),
-                                random.randint(0,self.height))
+            self.food_pos = Pos(random.randint(0,self.width-1),
+                                random.randint(0,self.height-1))
             if self.food_pos not in self.snake_arr:
                 return
 
@@ -62,7 +64,12 @@ class Field:
 
         if newpos == self.snake_arr[-2]:
             # trying to go backwards in on yourself
-            return # do not allow
+            self.snake_dir=self.prev_snake_dir # override move dir to a last valid one
+            return self.__step_snake() # re-step
+        if newpos in self.snake_arr:
+            # went into self
+            self.game_over = True
+            return
 
         self.snake_arr.append(newpos)
         if not newpos == self.food_pos:
@@ -70,6 +77,8 @@ class Field:
         else:
             self.eaten+=1
             self.__spawn_food()
+
+        self.prev_snake_dir = self.snake_dir
 
     def step(self):
         self.__step_snake()
@@ -88,10 +97,3 @@ class Field:
                     buf+= '.'
             buffer.append(buf)
         return '\n'.join(buffer)
-
-field = Field()
-while True:
-    print('-------------------------------------------')
-    print(field.str_render())
-    field.step()
-    time.sleep(0.5)

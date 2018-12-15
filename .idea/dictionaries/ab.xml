@@ -2,6 +2,7 @@
   <dictionary name="ab">
     <words>
       <w>newpos</w>
+      <w>pygame</w>
     </words>
   </dictionary>
 </component>
