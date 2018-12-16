@@ -1,4 +1,5 @@
 import copy
+import math
 import random
 import time
 
@@ -13,6 +14,9 @@ class Pos:
 
     def __repr__(self):
         return str(self.x)+', '+str(self.y)
+
+    def dist(self, other):
+        return ((self.x-other.x)**2+(self.y-other.y)**2)**(1/2)
 
 class Field:
     """
@@ -79,6 +83,7 @@ class Field:
             del self.snake_arr[0]
             self.eat_timings[-1]+=1
         else:
+            print('EAT')
             self.eaten+=1
             self.__spawn_food()
             self.eat_timings.append(0)
@@ -109,7 +114,7 @@ class Field:
         """
         # thing ID: nothing, body, food
 
-        inf = (self.width*self.height)+10
+        inf = math.ceil((self.width**2+self.height**2)**(1/2))
         thing_ids=[0,0,0,0,0,0,0,0] # 8 directions # 2 bits each
         thing_dists=[inf,inf,inf,inf,inf,inf,inf,inf] # 9 bits each
 
@@ -147,5 +152,6 @@ class Field:
 
             # append data for this dir to buffer
             ret.extend([float(x) for x in format(thing_ids[diri],'02b')])
-            ret.extend([float(x) for x in format(thing_dists[diri],'09b')])
+            # ret.extend([float(x) for x in format(thing_dists[diri],'09b')]) # if want to do binary way
+            ret.append(1-(thing_dists[diri]/inf)) # reduces node num from 88 to 24
         return ret
