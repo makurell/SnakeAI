@@ -1,4 +1,5 @@
 import copy
+import math
 import random
 import numpy as np
 
@@ -20,16 +21,16 @@ class Network:
         self.shape = shape
         self.activf = activation
 
-        # init
+        # init (random inital weights/biases)
         self.weights = [np.random.randn(j, i) for i, j in zip(
-            self.shape[:-1], self.shape[1:])]
-        self.biases = [np.random.randn(i, 1) for i in self.shape[1:]]
+            self.shape[:-1], self.shape[1:])] # matrix for each layer-gap
+        self.biases = [np.random.randn(i, 1) for i in self.shape[1:]] # single column matrix for each layer-gap
 
     def forward(self, data):
         """
         run input through network and get output
         :param data: list of inputs
-        :returns: list of outputs
+        :return: list of outputs
         """
         result = (np.array([data]).T if isinstance(data, list) else data)
 
@@ -39,6 +40,9 @@ class Network:
         return result.flatten()
 
 class Agent:
+    """
+    A member of a `Genetic` class' population
+    """
     def __init__(self, net:Network, fitf):
         """
         :param net: underlying Neural Network
@@ -85,17 +89,44 @@ class Genetic:
         :param opt_max: whether to maximise fitf or to minimise it
         :param parallelise: whether to parallelise (multithread) evaluation of NNs (execution of fitfs)
         """
+        # todo saving to file
+
+        self.shape = shape
+        self.pop_size = pop_size
+        self.fitf = fitf
+        self.sel_top = sel_top
+        self.sel_rand = sel_rand
+        self.sel_mut = sel_mut
+        self.prob_cross = prob_cross
+        self.prob_mut = prob_mut
+        self.mut_range = mut_range
+        self.activf = activf
+        self.opt_max = opt_max
+        self.parallelise = parallelise
+
         self.population = []
 
-        for i in range(20):
-            self.population.append(Agent(Network([2,2,1])))
+        # init population
+        for i in range(self.pop_size):
+            self.population.append(Agent(
+                Network(self.shape,self.activf),
+                self.fitf))
 
     def next_pop(self):
+        """
+        select agents to survive to next generation
+        :return:
+        """
         next_pop = []
-        for i in range(10):
+
+        # select specified no of top agents
+        for i in range(math.floor(self.pop_size*self.sel_top)):
             next_pop.append(copy.deepcopy(self.population[i]))
-        for i in range(5):
+
+        # randomly select specified no of agents
+        for i in range(math.floor(self.pop_size*self.sel_rand)):
             next_pop.append(copy.deepcopy(random.choice(self.population)))
+
         return next_pop
 
     def cross(self, parent1, parent2):
