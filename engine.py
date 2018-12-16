@@ -58,6 +58,7 @@ class Engine:
                     self.field.snake_dir = 3
 
         self.field.step()
+        print(self.field.get_senses())
 
     def __draw_stats(self):
         self.stats_surface.fill(COL_BACK0)

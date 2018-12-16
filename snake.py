@@ -102,3 +102,50 @@ class Field:
                     buf+= '.'
             buffer.append(buf)
         return '\n'.join(buffer)
+
+    def get_senses(self):
+        """
+        Neural network input
+        """
+        # thing ID: nothing, body, food
+
+        inf = (self.width*self.height)+10
+        thing_ids=[0,0,0,0,0,0,0,0] # 8 directions # 2 bits each
+        thing_dists=[inf,inf,inf,inf,inf,inf,inf,inf] # 9 bits each
+
+        ret = []
+
+        incrs = [
+            (1,0),
+            (1,1),
+            (0,1),
+            (-1,1),
+            (-1,0),
+            (-1,-1),
+            (0,-1),
+            (1,-1)
+        ]
+
+        for diri, incr in enumerate(incrs):
+            # search this dir
+            cur = copy.deepcopy(self.snake_arr[-1]) # head of snake
+            curdist = 0
+            while self.width > cur.x > 0 and self.height > cur.y > 0:
+                cur.y+=incr[0]
+                cur.x+=incr[1]
+
+                if cur in self.snake_arr:
+                    thing_dists[diri]=curdist
+                    thing_ids[diri]=1
+                    break
+                elif cur == self.food_pos:
+                    thing_dists[diri] = curdist
+                    thing_ids[diri]=2
+                    break
+
+                curdist+=1
+
+            # append data for this dir to buffer
+            ret.extend([float(x) for x in format(thing_ids[diri],'02b')])
+            ret.extend([float(x) for x in format(thing_dists[diri],'09b')])
+        return ret
