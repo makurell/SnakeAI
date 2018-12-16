@@ -31,7 +31,7 @@ class Field:
         self.height = height
 
         # init
-        random.seed(0)
+        # random.seed(0)
         self.eat_timings = [0] # no steps taken to eat (for each eat)
 
         self.game_over = False
@@ -117,6 +117,8 @@ class Field:
         inf = math.ceil((self.width**2+self.height**2)**(1/2))
         thing_ids=[0,0,0,0,0,0,0,0] # 8 directions # 2 bits each
         thing_dists=[inf,inf,inf,inf,inf,inf,inf,inf] # 9 bits each
+        # thing_ids=[0,0,0,0] # 9 directions
+        # thing_dists=[inf,inf,inf,inf]
 
         ret = []
 

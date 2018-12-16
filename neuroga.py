@@ -1,6 +1,7 @@
 import copy
 import json
 import math
+import statistics
 import random
 import os
 from threading import Thread
@@ -188,12 +189,13 @@ class Genetic:
         next_pop = []
 
         # select specified no of top agents
-        for i in range(math.floor(self.pop_size*self.sel_top)):
-            next_pop.append(copy.deepcopy(self.population[i]))
+        topn = math.floor(self.pop_size*self.sel_top)
+        for i in range(topn):
+            next_pop.append(copy.deepcopy(self.population.pop(0)))
 
         # randomly select specified no of agents
         for i in range(math.floor(self.pop_size*self.sel_rand)):
-            next_pop.append(copy.deepcopy(random.choice(self.population)))
+            next_pop.append(copy.deepcopy(self.population.pop(random.randint(0,len(self.population)-1))))
 
         return next_pop
 
@@ -217,6 +219,9 @@ class Genetic:
 
         return child
 
+    def __sort(self):
+        self.population.sort(key=lambda agent: agent.fitness, reverse=self.opt_max)
+
     def __evaluate(self):
         """
         evaluate and sort agents
@@ -236,25 +241,34 @@ class Genetic:
             for agent in self.population:
                 agent.evaluate()
 
-        self.population.sort(key=lambda agent: agent.fitness, reverse=self.opt_max)
+        self.__sort()
 
     def step(self):
         self.__evaluate()
-        if DEBUG: print('['+str(self.gen_num)+'] Fit: '+str(self.population[0].fitness))
+        if DEBUG: print('['+str(self.gen_num)+'] Fit: '+str(self.population[0].fitness)+
+                        ' Stdv: '+str(statistics.stdev([x.fitness for x in self.population])))
 
         self.population=self.next_pop()
 
+        self.__sort()
         # children generation
+        choice_buffer=copy.deepcopy(self.population[1:])
+        children_buffer=[]
         for i in range(self.pop_size - len(self.population)):
-            self.population.insert(0,self.cross(self.population[0],random.choice(self.population)))
+            # self.population.insert(1,self.cross(self.population[0],random.choice(self.population)))
+            # self.population.insert(0,self.cross(random.choice(self.population),random.choice(self.population)))
+            children_buffer.append(self.cross(self.population[0],choice_buffer.pop(random.randint(0,len(choice_buffer)-1))))
+        self.population.extend(children_buffer)
 
         # weights mutation
         for no in range(math.floor(self.pop_size*self.sel_mut)):
-            mutant = random.choice(self.population)
+            mutant = copy.deepcopy(random.choice(self.population))
             for i, weights in enumerate(mutant.net.weights):
                 for j, weight in enumerate(mutant.net.weights[i]):
                     if random.random() < self.prob_mut:
                         mutant.net.weights[i][j]+=random.uniform(*self.mut_range)
+            self.population.pop(random.randint(0,len(self.population)-1))
+            self.population.append(mutant)
 
         # biases mutation
         for no in range(math.floor(self.pop_size * self.sel_mut)):
