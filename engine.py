@@ -17,7 +17,7 @@ class Engine:
 
         # pygame setup
         self.game_surface = pygame.Surface((self.cell_width * self.field.width,
-                                                    self.cell_width * self.field.height))
+                                            self.cell_width * self.field.height))
         self.stats_surface = pygame.Surface((self.game_surface.get_width(), 34))
 
         self.screen:pygame.Surface = pygame.display.set_mode(
