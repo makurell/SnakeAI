@@ -2,7 +2,12 @@ import copy
 import math
 import random
 import time
+import numpy as np
 
+def cart_to_pol(x, y):
+    rho = np.sqrt(x**2 + y**2)
+    phi = np.arctan2(y, x)
+    return (rho, phi)
 
 class Pos:
     def __init__(self, x, y):
@@ -108,6 +113,15 @@ class Field:
             buffer.append(buf)
         return '\n'.join(buffer)
 
+    # def get_senses(self):
+    #     head = self.snake_arr[-1]
+    #
+    #     angle_dist = 2*np.pi/8.0
+    #     food_dist, food_angle = cart_to_pol(self.food_pos.x-head.x,self.food_pos.y-head.y)
+    #     print(food_angle/angle_dist)
+    #
+    #     # print(food_dist,food_angle*57.2958)
+
     def get_senses(self):
         """
         Neural network input
@@ -152,8 +166,11 @@ class Field:
 
                 curdist+=1
 
+
             # append data for this dir to buffer
             ret.extend([float(x) for x in format(thing_ids[diri],'02b')])
             # ret.extend([float(x) for x in format(thing_dists[diri],'09b')]) # if want to do binary way
             ret.append(1-(thing_dists[diri]/inf)) # reduces node num from 88 to 24
+
+        # print(thing_dists)
         return ret

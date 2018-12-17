@@ -9,6 +9,12 @@ from threading import Thread
 import numpy as np
 
 DEBUG = True
+import matplotlib.pyplot as plt
+
+fit_plots = []
+plt.xlabel('generation')
+plt.ylabel('fitness')
+
 
 def sigmoid(x):
     return 1/(1+np.exp(-x))
@@ -248,16 +254,34 @@ class Genetic:
         if DEBUG: print('['+str(self.gen_num)+'] Fit: '+str(self.population[0].fitness)+
                         ' Stdv: '+str(statistics.stdev([x.fitness for x in self.population])))
 
+        fit_plots.append(self.population[0].fitness)
+        if len(fit_plots)>50:
+            del fit_plots[0]
+        plt.clf()
+        plt.plot(fit_plots,color='red')
+        plt.pause(0.05)
+        plt.draw()
+
         self.population=self.next_pop()
 
         self.__sort()
         # children generation
-        choice_buffer=copy.deepcopy(self.population[1:])
+        choice_buffer=copy.deepcopy(self.population)
         children_buffer=[]
         for i in range(self.pop_size - len(self.population)):
             # self.population.insert(1,self.cross(self.population[0],random.choice(self.population)))
             # self.population.insert(0,self.cross(random.choice(self.population),random.choice(self.population)))
-            children_buffer.append(self.cross(self.population[0],choice_buffer.pop(random.randint(0,len(choice_buffer)-1))))
+            popped = random.choice(choice_buffer)
+            choice_buffer.remove(popped)
+
+            for j in range(10): # 10 attempts
+                child = self.cross(self.population[0],popped)
+                if child.evaluate()>popped.fitness: # todo generalise
+                    children_buffer.append(child)
+                    break
+                elif j==9:
+                    children_buffer.append(child)
+                    break
         self.population.extend(children_buffer)
 
         # weights mutation
@@ -287,3 +311,5 @@ class Genetic:
                         f.write(self.population[0].net.serialise())
 
         self.gen_num+=1
+
+# todo maybe NN impl itself bad because never really 2/3

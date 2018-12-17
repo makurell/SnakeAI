@@ -55,22 +55,24 @@ def fitf3(net):
         field.snake_dir = output.argmax()
         field.step()
 
-    return field.eaten*100+i
+    avg_eat_timing = sum(field.eat_timings) / float(len(field.eat_timings))
+    return field.eaten*100 - avg_eat_timing*2 + i
 
 
-genetic = neuroga.Genetic([24,4,4],
+# model d is corrupted past a 2050
+genetic = neuroga.Genetic([24,12,4],
                           20,
                           fitf3,
-                          save='models/f/',
-                          save_interval=50,
+                          save='models/g/',
+                          save_interval=5,
                           save_hist=True,
                           sel_top=0.4,
                           sel_rand=0.3,
-                          sel_mut=0.9,
+                          sel_mut=0.8,
                           prob_cross=0.7,
-                          prob_mut=0.9,
-                          mut_range=(-20,20),
-                          opt_max=True,
+                          prob_mut=0.8,
+                          mut_range=(-5,5),
+                          opt_max=True, # do NOt change
                           activf=neuroga.sigmoid
                           )
 no=0
