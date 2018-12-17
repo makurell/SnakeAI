@@ -45,7 +45,7 @@ def fitf2(net:neuroga.Network):
 
 def fitf3(net):
     field = snake.Field()
-    steps_limit = 200
+    steps_limit = 700
 
     i=0
     for i in range(steps_limit):
@@ -61,13 +61,13 @@ def fitf3(net):
 
 # model d is corrupted past a 2050
 genetic = neuroga.Genetic([24,12,4],
-                          20,
+                          100,
                           fitf3,
-                          save='models/g/',
+                          save='models/i/',
                           save_interval=5,
                           save_hist=True,
                           sel_top=0.4,
-                          sel_rand=0.3,
+                          sel_rand=0.5,
                           sel_mut=0.8,
                           prob_cross=0.7,
                           prob_mut=0.8,

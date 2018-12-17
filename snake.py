@@ -5,7 +5,7 @@ import time
 import numpy as np
 
 def cart_to_pol(x, y):
-    rho = np.sqrt(x**2 + y**2)
+    rho = np.hypot(x,y)
     phi = np.arctan2(y, x)
     return (rho, phi)
 
@@ -113,64 +113,73 @@ class Field:
             buffer.append(buf)
         return '\n'.join(buffer)
 
-    # def get_senses(self):
-    #     head = self.snake_arr[-1]
-    #
-    #     angle_dist = 2*np.pi/8.0
-    #     food_dist, food_angle = cart_to_pol(self.food_pos.x-head.x,self.food_pos.y-head.y)
-    #     print(food_angle/angle_dist)
-    #
-    #     # print(food_dist,food_angle*57.2958)
-
     def get_senses(self):
-        """
-        Neural network input
-        """
-        # thing ID: nothing, body, food
+        head = self.snake_arr[-1]
 
-        inf = math.ceil((self.width**2+self.height**2)**(1/2))
-        thing_ids=[0,0,0,0,0,0,0,0] # 8 directions # 2 bits each
-        thing_dists=[inf,inf,inf,inf,inf,inf,inf,inf] # 9 bits each
-        # thing_ids=[0,0,0,0] # 9 directions
-        # thing_dists=[inf,inf,inf,inf]
+        dirs_no = 8
+        full = 2*np.pi
+        sec = full/float(dirs_no)
+        half_sec = sec/2.0
 
-        ret = []
+        dir_names = '↖↑↗→↘↓↙←'
 
-        incrs = [
-            (1,0),
-            (1,1),
-            (0,1),
-            (-1,1),
-            (-1,0),
-            (-1,-1),
-            (0,-1),
-            (1,-1)
-        ]
-
-        for diri, incr in enumerate(incrs):
-            # search this dir
-            cur = copy.deepcopy(self.snake_arr[-1]) # head of snake
-            curdist = 0
-            while self.width > cur.x > 0 and self.height > cur.y > 0:
-                cur.y+=incr[0]
-                cur.x+=incr[1]
-
-                if cur in self.snake_arr:
-                    thing_dists[diri]=curdist
-                    thing_ids[diri]=1
-                    break
-                elif cur == self.food_pos:
-                    thing_dists[diri] = curdist
-                    thing_ids[diri]=2
-                    break
-
-                curdist+=1
+        food_dist, food_angle = cart_to_pol(head.x-self.food_pos.x,head.y-self.food_pos.y)
+        for i in range(1,dirs_no+1): # start w/ 1 up to and including dirs_no
+            if sec*i-half_sec <= food_angle%full < sec*i or (sec*i)%full <= food_angle%full < (sec*i+half_sec)%full:
+                print(dir_names[i-1])
 
 
-            # append data for this dir to buffer
-            ret.extend([float(x) for x in format(thing_ids[diri],'02b')])
-            # ret.extend([float(x) for x in format(thing_dists[diri],'09b')]) # if want to do binary way
-            ret.append(1-(thing_dists[diri]/inf)) # reduces node num from 88 to 24
+        print(food_dist,food_angle*57.2958)
 
-        # print(thing_dists)
-        return ret
+    # def get_senses(self):
+    #     """
+    #     Neural network input
+    #     """
+    #     # thing ID: nothing, body, food
+    #
+    #     inf = math.ceil((self.width**2+self.height**2)**(1/2))
+    #     thing_ids=[0,0,0,0,0,0,0,0] # 8 directions # 2 bits each
+    #     thing_dists=[inf,inf,inf,inf,inf,inf,inf,inf] # 9 bits each
+    #     # thing_ids=[0,0,0,0] # 9 directions
+    #     # thing_dists=[inf,inf,inf,inf]
+    #
+    #     ret = []
+    #
+    #     incrs = [
+    #         (1,0),
+    #         (1,1),
+    #         (0,1),
+    #         (-1,1),
+    #         (-1,0),
+    #         (-1,-1),
+    #         (0,-1),
+    #         (1,-1)
+    #     ]
+    #
+    #     for diri, incr in enumerate(incrs):
+    #         # search this dir
+    #         cur = copy.deepcopy(self.snake_arr[-1]) # head of snake
+    #         curdist = 0
+    #         while self.width > cur.x > 0 and self.height > cur.y > 0:
+    #             cur.y+=incr[0]
+    #             cur.x+=incr[1]
+    #
+    #             if cur in self.snake_arr:
+    #                 thing_dists[diri]=curdist
+    #                 thing_ids[diri]=1
+    #                 break
+    #             elif cur == self.food_pos:
+    #                 thing_dists[diri] = curdist
+    #                 thing_ids[diri]=2
+    #                 break
+    #
+    #             curdist+=1
+    #
+    #
+    #         # append data for this dir to buffer
+    #         ret.extend([float(x) for x in format(thing_ids[diri],'02b')])
+    #         # ret.extend([float(x) for x in format(thing_dists[diri],'09b')]) # if want to do binary way
+    #         ret.append(1-(thing_dists[diri]/inf)) # reduces node num from 88 to 24
+    #
+    #     # print(thing_dists)
+    #     return ret

@@ -8,14 +8,14 @@ COL_BACK2 = (59,59,58)
 COL_FOOD = (242,95,92)
 COL_SNAKE = (255,224,102)
 
-# with open('models/f/20.json','r') as f:
+# with open('models/i/1670.json','r') as f:
 #     net = neuroga.Network([24,4,4],saved=f.read())
 
 class Engine:
 
     def __init__(self):
         self.field = Field()
-        self.frame_time = 90  # amount of ms each frame is to be shown
+        self.frame_time = 900  # amount of ms each frame is to be shown
 
         self.cell_width = 30
 
