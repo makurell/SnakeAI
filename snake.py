@@ -4,11 +4,6 @@ import random
 import time
 import numpy as np
 
-def cart_to_pol(x, y):
-    rho = np.hypot(x,y)
-    phi = np.arctan2(y, x)
-    return (rho, phi)
-
 class Pos:
     def __init__(self, x, y):
         self.x = x
@@ -22,6 +17,28 @@ class Pos:
 
     def dist(self, other):
         return ((self.x-other.x)**2+(self.y-other.y)**2)**(1/2)
+
+def cart_to_pol(x, y):
+    rho = np.hypot(x,y)
+    phi = np.arctan2(y, x)
+    return rho, phi
+
+def get_dir(ref: Pos, other: Pos, dirs_no=8):
+    """
+    Classify the relative position of `other` to `ref` in terms of distance and direction class.
+    Returns `None` if NA
+    :return: (distance, dir index)
+    """
+    full = 2 * np.pi
+    sec = full / float(dirs_no)
+    half_sec = sec / 2.0
+
+    rho, phi = cart_to_pol(ref.x - other.x, ref.y - other.y)
+    for i in range(1, dirs_no + 1):  # start w/ 1 up to and including dirs_no
+        if sec * i - half_sec <= phi % full < sec * i or (sec * i) % full <= phi % full < (sec * i + half_sec) % full:
+            return rho, i - 1
+
+    return None
 
 class Field:
     """
@@ -117,19 +134,33 @@ class Field:
         head = self.snake_arr[-1]
 
         dirs_no = 8
-        full = 2*np.pi
-        sec = full/float(dirs_no)
-        half_sec = sec/2.0
+        # dir_names = '↖↑↗→↘↓↙←'
 
-        dir_names = '↖↑↗→↘↓↙←'
+        inf = math.ceil((self.width ** 2 + self.height ** 2) ** (1 / 2)) # biggest possib distance is hyp
 
-        food_dist, food_angle = cart_to_pol(head.x-self.food_pos.x,head.y-self.food_pos.y)
-        for i in range(1,dirs_no+1): # start w/ 1 up to and including dirs_no
-            if sec*i-half_sec <= food_angle%full < sec*i or (sec*i)%full <= food_angle%full < (sec*i+half_sec)%full:
-                print(dir_names[i-1])
+        data = [] # list of tuples: dist, id (nothing, body, food) [index corresp to dir index]
 
+        # init data
+        for i in range(dirs_no):
+            data.append((inf,0))
 
-        print(food_dist,food_angle*57.2958)
+        # add food to data if sight not blocked
+        dist, diri = get_dir(head,self.food_pos,dirs_no)
+        if dist<data[diri][0]:
+            data[diri] = (dist,2)
+        # print((dist,dir_names[diri]))
+
+        for bpart in self.snake_arr[:-1]: # exclude head
+            dist, diri = get_dir(head,bpart,dirs_no)
+            # add to data if sight not blocked (smaller dist than whatever currently in that dir)
+            if dist < data[diri][0]:
+                data[diri] = (dist, 1)
+
+        sense_data = []
+        for dat in data:
+            sense_data.extend([float(x) for x in format(dat[1],'02b')]) # ID encoded as 2-bit bin
+            sense_data.append(1 - (dat[0] / inf)) # normalised dist value
+        return sense_data
 
     # def get_senses(self):
     #     """

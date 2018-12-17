@@ -15,7 +15,7 @@ class Engine:
 
     def __init__(self):
         self.field = Field()
-        self.frame_time = 900  # amount of ms each frame is to be shown
+        self.frame_time = 90  # amount of ms each frame is to be shown
 
         self.cell_width = 30
 
