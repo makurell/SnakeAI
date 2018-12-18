@@ -8,8 +8,8 @@ COL_BACK2 = (59,59,58)
 COL_FOOD = (242,95,92)
 COL_SNAKE = (255,224,102)
 
-# with open('models/i/1670.json','r') as f:
-#     net = neuroga.Network([24,4,4],saved=f.read())
+with open('models/j/835.json','r') as f:
+    net = neuroga.Network([24,4,4],saved=f.read())
 
 class Engine:
 
@@ -61,11 +61,13 @@ class Engine:
                 if event.key == pygame.K_LEFT:
                     self.field.snake_dir = 3
 
-        # self.field.snake_dir=net.forward(self.field.get_senses()).argmax()
+        output = net.forward(self.field.get_senses())
+        self.field.snake_dir=output.argmax()
+        print(output)
 
         self.field.step()
         # print(self.field.get_senses())
-        self.field.get_senses()
+        # self.field.get_senses()
 
     def __draw_stats(self):
         self.stats_surface.fill(COL_BACK0)

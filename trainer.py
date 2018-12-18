@@ -63,15 +63,15 @@ def fitf3(net):
 genetic = neuroga.Genetic([24,12,4],
                           100,
                           fitf3,
-                          save='models/i/',
+                          save='models/o/',
                           save_interval=5,
                           save_hist=True,
-                          sel_top=0.4,
-                          sel_rand=0.5,
+                          sel_top=0.3,
+                          sel_rand=0.1,
                           sel_mut=0.8,
                           prob_cross=0.7,
                           prob_mut=0.8,
-                          mut_range=(-5,5),
+                          mut_range=(-10,10),
                           opt_max=True, # do NOt change
                           activf=neuroga.sigmoid
                           )

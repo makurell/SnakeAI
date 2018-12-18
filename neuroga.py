@@ -271,6 +271,10 @@ class Genetic:
         for i in range(self.pop_size - len(self.population)):
             # self.population.insert(1,self.cross(self.population[0],random.choice(self.population)))
             # self.population.insert(0,self.cross(random.choice(self.population),random.choice(self.population)))
+            if len(choice_buffer)<=0:
+                choice_buffer = copy.deepcopy(self.population) # more new babies than selected
+                # (warning: inbread: may be bad for variation)
+
             popped = random.choice(choice_buffer)
             choice_buffer.remove(popped)
 
@@ -283,6 +287,7 @@ class Genetic:
                     children_buffer.append(child)
                     break
         self.population.extend(children_buffer)
+        # print(len(self.population))
 
         # weights mutation
         for no in range(math.floor(self.pop_size*self.sel_mut)):

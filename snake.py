@@ -65,8 +65,17 @@ class Field:
         self.prev_snake_dir = 0
 
         # init snake_arr
+        snake_dir = random.choice([
+            (0,1),
+            (1,0),
+            (0,-1),
+            (-1,0)
+        ])
+        cur_pos = Pos(random.randint(0,self.width-1),random.randint(0,self.height-1))
         for i in range(3):
-            self.snake_arr.append(Pos(i,0))
+            self.snake_arr.append(cur_pos)
+            cur_pos.x=(cur_pos.x+snake_dir[0])%self.width
+            cur_pos.y=(cur_pos.y+snake_dir[1])%self.height
 
         self.__spawn_food()
 
@@ -105,7 +114,7 @@ class Field:
             del self.snake_arr[0]
             self.eat_timings[-1]+=1
         else:
-            print('EAT')
+            # print('EAT')
             self.eaten+=1
             self.__spawn_food()
             self.eat_timings.append(0)
