@@ -65,7 +65,7 @@ class Network:
         result = (np.array([data]).T if isinstance(data, list) else data)
 
         for w, b in zip(self.weights, self.biases):
-            result = self.activf(np.dot(w,result) + b)
+            result = self.activf(np.dot(w,result)+b) #todo no b
 
         return result.flatten()
 
@@ -140,7 +140,7 @@ class Genetic:
 
         if selection_args is None:
             selection_args = {
-                'ptop': 0.1,
+                'ptop': 0.3,
                 'prand': 0.1
             }
         if cross_args is None:
@@ -167,6 +167,7 @@ class Genetic:
         self.population = []
         self.gen_num = 0
         self.__fit_hist = []
+        self.__dfit_hist = []
 
         # init population
         for i in range(self.pop_size):
@@ -293,34 +294,36 @@ class Genetic:
         child2 = Network(parent1.net.shape,parent1.net.activf)
 
         # cross weights
-        for i, weights in enumerate(parent1.net.weights):
-            for j in range(len(weights)):
-                if random.random()<prob:
-                    # swap
-                    child1.weights[i][j] = parent2.net.weights[i][j]
-                    child2.weights[i][j] = parent1.net.weights[i][j]
-                else:
-                    # don't swap
-                    child1.weights[i][j] = parent1.net.weights[i][j]
-                    child2.weights[i][j] = parent2.net.weights[i][j]
+        for i in range(len(parent1.net.weights)):
+            for j in range(len(parent1.net.weights[i])):
+                for k in range(len(parent1.net.weights[i][j])):
+                    if random.random() < prob:
+                        # swap
+                        child1.weights[i][j][k] = parent2.net.weights[i][j][k]
+                        child2.weights[i][j][k] = parent1.net.weights[i][j][k]
+                    else:
+                        # don't swap
+                        child1.weights[i][j][k] = parent1.net.weights[i][j][k]
+                        child2.weights[i][j][k] = parent2.net.weights[i][j][k]
 
         if cross_biases:
             # cross biases
-            for i, biases in enumerate(parent1.net.biases):
-                for j in range(len(biases)):
-                    if random.random()<bias_prob:
-                        # swap
-                        child1.biases[i][j] = parent2.net.biases[i][j]
-                        child2.biases[i][j] = parent1.net.biases[i][j]
-                    else:
-                        # don't swap
-                        child1.biases[i][j] = parent1.net.biases[i][j]
-                        child2.biases[i][j] = parent2.net.biases[i][j]
+            for i in range(len(parent1.net.biases)):
+                for j in range(len(parent1.net.biases[i])):
+                    for k in range(len(parent1.net.biases[i][j])):
+                        if random.random()<bias_prob:
+                            # swap
+                            child1.biases[i][j][k] = parent2.net.biases[i][j][k]
+                            child2.biases[i][j][k] = parent1.net.biases[i][j][k]
+                        else:
+                            # don't swap
+                            child1.biases[i][j][k] = parent1.net.biases[i][j][k]
+                            child2.biases[i][j][k] = parent2.net.biases[i][j][k]
 
         return [Agent(child1,parent1.fitf), Agent(child2,parent1.fitf)]
 
     @staticmethod
-    def recombine(ipop:List[Agent], pop_size, cross_args=None)->List[Agent]:
+    def  recombine(ipop:List[Agent], pop_size, cross_args=None)->List[Agent]:
         """
         recombine the intermediary population until population of specified size is formed
         :return: next population
@@ -334,7 +337,9 @@ class Genetic:
             children = Genetic.cross(ipop[0],ipop[1],**cross_args)
 
             while len(next_pop) < pop_size and len(children)>0:
-                next_pop.append(children.pop())
+                child = children.pop()
+                # if child.evaluate()>ipop[1].fitness*0.8:
+                next_pop.append(child)
 
         return next_pop
 
@@ -374,17 +379,19 @@ class Genetic:
             # mutate weights
             for i in range(len(agent.net.weights)):
                 for j in range(len(agent.net.weights[i])):
-                    if random.random() < prob:
-                        # mutate
-                        agent.net.weights[i][j]+=random.uniform(-1*amount,amount)
+                    for k in range(len(agent.net.weights[i][j])):
+                        if random.random() < prob:
+                            # mutate
+                            agent.net.weights[i][j][k]+=random.uniform(-1*amount,amount)
 
             if mutate_biases:
                 # mutate biases
                 for i in range(len(agent.net.biases)):
                     for j in range(len(agent.net.biases[i])):
-                        if random.random() < bias_prob:
-                            # mutate
-                            agent.net.biases[i][j] += random.uniform(-1*bias_amount, bias_amount)
+                        for k in range(len(agent.net.biases[i][j])):
+                            if random.random() < bias_prob:
+                                # mutate
+                                agent.net.biases[i][j][k] += random.uniform(-1*bias_amount, bias_amount)
 
             ret_pop.append(agent)
 
@@ -405,11 +412,22 @@ class Genetic:
                 if len(self.__fit_hist) > 50:
                     del self.__fit_hist[0]
 
+                if len(self.__fit_hist)>=2:
+                    self.__dfit_hist.append(self.__fit_hist[-1]-self.__fit_hist[-2])
+
+                plt.figure(1)
                 plt.clf()
                 plt.xlabel('generation')
                 plt.ylabel('fitness')
-                # plt.plot(smooth(self.__fit_hist,2), color='red')
-                plt.plot(self.__fit_hist, color='red')
+                plt.plot(smooth(self.__fit_hist,4), color='red')
+
+                if len(self.__dfit_hist)>0:
+                    plt.figure(2)
+                    plt.clf()
+                    plt.xlabel('generation')
+                    plt.ylabel('1/fitness')
+                    plt.plot(smooth(self.__dfit_hist,4), color='blue')
+
                 plt.pause(0.05)
                 plt.draw()
 

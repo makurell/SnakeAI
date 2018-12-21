@@ -4,3 +4,10 @@ achieves fit around 3000 (good) <-- tactic of scrolling across while moving down
 18/12: Notice only really moves down or left: randomise snake starting position and retrain (o-p) to try combat
 18/12 11:28pm: If not eat food for last 100 steps, kill snake (pa) = faster training too
 19/12 01:03am: r815 kill thresh to 25 (maybe too harsh, need to see)
+21/12 03:40am: after rewriting ng. f super fast peak to 1887 fitness fit3. By changing pop_size to 1000
+21/12 03:44am: implemented border killing (g)
+21/12 04:10am: need to implement border detection in senses! Hasty implementation h
+21/12 04:36am: give walls their own ID (3)
+21/12 04:36am: trained overnight (j). Terrible performance
+21/12 03:27pm: rewrote senses+fitness (k)
+21/12 03:59pm: REALISED I WAS CROSSING/MUTATING WRONG because accessing weights/biases of matrix incorrectly (forgot it was a list of matricies). l

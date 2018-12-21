@@ -87,6 +87,7 @@ class Field:
                 return
 
     def __step_snake(self):
+        ate = False
         newpos = copy.deepcopy(self.snake_arr[-1])
         if self.snake_dir == 0:
             newpos.y-=1
@@ -98,7 +99,15 @@ class Field:
             newpos.x-=1
 
         # position wrap around
-        newpos = Pos(newpos.x%self.width, newpos.y%self.height)
+        # newpos = Pos(newpos.x%self.width, newpos.y%self.height)
+        if newpos.x>=self.width or newpos.x<0:
+            # border kill
+            self.game_over = True
+            return False
+        if newpos.y>=self.height or newpos.y<0:
+            # border kill
+            self.game_over = True
+            return False
 
         if newpos == self.snake_arr[-2]:
             # trying to go backwards in on yourself
@@ -107,7 +116,7 @@ class Field:
         if newpos in self.snake_arr:
             # went into self
             self.game_over = True
-            return
+            return False
 
         self.snake_arr.append(newpos)
         if not newpos == self.food_pos:
@@ -118,11 +127,13 @@ class Field:
             self.eaten+=1
             self.__spawn_food()
             self.eat_timings.append(0)
+            ate = True
 
         self.prev_snake_dir = self.snake_dir
+        return ate
 
     def step(self):
-        self.__step_snake()
+        return self.__step_snake()
 
     def str_render(self):
         buffer = []
@@ -141,32 +152,97 @@ class Field:
 
     def get_senses(self):
         head = self.snake_arr[-1]
+        data = []
 
-        dirs_no = 8
-        # dir_names = '↖↑↗→↘↓↙←'
+        dirs = [
+            (-1,1),
+            (0,1),
+            (1,1),
+            (1,0),
+            (1,-1),
+            (0,-1),
+            (-1,-1),
+            (-1,0)
+        ]
 
-        inf = math.ceil((self.width ** 2 + self.height ** 2) ** (1 / 2)) # biggest possib distance is hyp
+        for dir_vec in dirs:
+            curpos = copy.deepcopy(head)
 
-        data = [] # list of tuples: dist, id (nothing, body, food) [index corresp to dir index]
+            found_food, found_tail = False, False
 
-        # init data
-        for i in range(dirs_no):
-            data.append((inf,0))
+            curpos.x+=dir_vec[0]
+            curpos.y+=dir_vec[1]
+            dist = 1
 
-        # add food to data if sight not blocked
-        dist, diri = get_dir(head,self.food_pos,dirs_no)
-        if dist<data[diri][0]:
-            data[diri] = (dist,2)
-        # print((dist,dir_names[diri]))
+            dir_data = [0,0,0]
 
-        for bpart in self.snake_arr[:-1]: # exclude head
-            dist, diri = get_dir(head,bpart,dirs_no)
-            # add to data if sight not blocked (smaller dist than whatever currently in that dir)
-            if dist < data[diri][0]:
-                data[diri] = (dist, 1)
+            while 0<=curpos.x<self.width and 0<=curpos.y<self.height:
+                if not found_food and self.food_pos == curpos:
+                    dir_data[0] = 1
+                    found_food = True
 
-        sense_data = []
-        for dat in data:
-            sense_data.extend([float(x) for x in format(dat[1],'02b')]) # ID encoded as 2-bit bin
-            sense_data.append(1 - (dat[0] / inf)) # normalised dist value
-        return sense_data
+                if not found_tail and curpos in self.snake_arr:
+                    dir_data[1] = 1/float(dist)
+                    found_tail = True
+
+                curpos.x += dir_vec[0]
+                curpos.y += dir_vec[1]
+                dist+=1
+
+            dir_data[2] = 1/float(dist)
+            data.extend(dir_data)
+
+        # print(data)
+        return data
+
+    # def get_senses(self):
+    #     head = self.snake_arr[-1]
+    #
+    #     dirs_no = 8
+    #     # dir_names = '↖↑↗→↘↓↙←'
+    #
+    #     inf = math.ceil((self.width ** 2 + self.height ** 2) ** (1 / 2)) # biggest possib distance is hyp
+    #
+    #     data = [] # list of tuples: dist, id (nothing, body, food, wall) [index corresp to dir index]
+    #
+    #     # init data
+    #     for i in range(dirs_no):
+    #         data.append((inf,0))
+    #
+    #     # data[1]=(head.y+1,3)
+    #     # data[3]=(self.width-head.x,3)
+    #     # data[5]=(self.height-head.y,3)
+    #     # data[7]=(head.x+1,3)
+    #
+    #     # add food to data if sight not blocked
+    #     dist, diri = get_dir(head,self.food_pos,dirs_no)
+    #     if dist<data[diri][0]:
+    #         data[diri] = (dist,2)
+    #     # print((dist,dir_names[diri]))
+    #
+    #     wall_blocks = []
+    #     for i in range(self.width):
+    #         wall_blocks.append(Pos(i,-1))
+    #         wall_blocks.append(Pos(i,self.height))
+    #     for i in range(self.height):
+    #         wall_blocks.append(Pos(-1,i))
+    #         wall_blocks.append(Pos(self.width,i))
+    #
+    #     for wall in wall_blocks:
+    #         dist, diri = get_dir(head, wall, dirs_no)
+    #         if dist < data[diri][0]:
+    #             data[diri] = (dist, 3)
+    #
+    #     for bpart in self.snake_arr[:-1]: # exclude head
+    #         dist, diri = get_dir(head,bpart,dirs_no)
+    #         # add to data if sight not blocked (smaller dist than whatever currently in that dir)
+    #         if dist < data[diri][0]:
+    #             data[diri] = (dist, 1)
+    #
+    #     # print(data)
+    #
+    #     sense_data = []
+    #     for dat in data:
+    #         sense_data.extend([float(x) for x in format(dat[1],'02b')]) # ID encoded as 2-bit bin
+    #         sense_data.append(1 - (dat[0] / inf)) # normalised dist value
+    #     return sense_data
