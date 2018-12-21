@@ -45,7 +45,7 @@ def fitf2(net:neuroga.Network):
 
 def fitf3(net):
     field = snake.Field()
-    steps_limit = 700
+    steps_limit = 20000
 
     i=0
     for i in range(steps_limit):
@@ -55,26 +55,28 @@ def fitf3(net):
         field.snake_dir = output.argmax()
         field.step()
 
+        if field.eat_timings[-1]>80: # not really going for the food = kill
+            break
+
     avg_eat_timing = sum(field.eat_timings) / float(len(field.eat_timings))
-    return field.eaten*100 - avg_eat_timing*2 + i
+    return field.eaten*100 - avg_eat_timing*50 + i
 
 
 # model d is corrupted past a 2050
-genetic = neuroga.Genetic([24,12,4],
-                          100,
+genetic = neuroga.Genetic([24,16,4],
+                          200,
                           fitf3,
-                          save='models/o/',
+                          save='models/w/',
                           save_interval=5,
                           save_hist=True,
-                          sel_top=0.3,
+                          sel_top=0.1,
                           sel_rand=0.1,
                           sel_mut=0.8,
-                          prob_cross=0.7,
+                          prob_cross=0.5,
                           prob_mut=0.8,
                           mut_range=(-10,10),
                           opt_max=True, # do NOt change
-                          activf=neuroga.sigmoid
-                          )
+                          activf=neuroga.sigmoid)
 no=0
 while True:
     genetic.step()

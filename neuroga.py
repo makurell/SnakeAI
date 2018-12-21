@@ -1,20 +1,18 @@
-import copy
 import json
 import math
-import statistics
 import random
 import os
+import statistics
+import warnings
 from threading import Thread
-
+from typing import List
 import numpy as np
 
 DEBUG = True
-import matplotlib.pyplot as plt
+PLOT = True
 
-fit_plots = []
-plt.xlabel('generation')
-plt.ylabel('fitness')
-
+if PLOT:
+    import matplotlib.pyplot as plt
 
 def sigmoid(x):
     return 1/(1+np.exp(-x))
@@ -25,6 +23,11 @@ def relu(x):
     Rectifier activation function.
     """
     return np.maximum(0, x)
+
+def smooth(y, box_pts):
+    box = np.ones(box_pts)/box_pts
+    y_smooth = np.convolve(y, box, mode='same')
+    return y_smooth[int(box_pts*0.5):int(-0.5*box_pts)]
 
 class Network:
     def __init__(self, shape, activation=sigmoid, saved=None):
@@ -44,10 +47,11 @@ class Network:
         else:
             self.shape = shape
 
-            # init (random inital weights/biases)
-            self.weights = [np.random.randn(j, i) for i, j in zip(
+            # init (random inital weights/biases). Glorot initialisation
+            self.weights = [np.random.normal(0,(2.0/(self.shape[0]+self.shape[-1]))**0.5,(j,i)) for i, j in zip(
                 self.shape[:-1], self.shape[1:])] # matrix for each layer-gap
-            self.biases = [np.random.randn(i, 1) for i in self.shape[1:]] # single column matrix for each layer-gap
+            # single column matrix for each layer-gap.
+            self.biases = [np.random.normal(0,(2.0/(self.shape[0]+self.shape[-1]))**0.5,(i,1)) for i in self.shape[1:]]
 
         if len(shape)<2:
             raise ValueError
@@ -79,78 +83,90 @@ class Agent:
     def __init__(self, net:Network, fitf):
         """
         :param net: underlying Neural Network
-        :param fitf: fitness function. Network will be passed as parameter.
+        :param fitf: fitness function. Network will be passed as parameter. Do not call directly.
         """
         self.net:Network = net
-        self.__fitf = fitf
+        self.fitf = fitf
         self.fitness = 0
 
     def evaluate(self):
         """
         update fitness by executing fitness function
         """
-        fitness = self.__fitf(self.net)
+        fitness = self.fitf(self.net)
         self.fitness = fitness
         return fitness
+
+class GeneticWarning(UserWarning):
+    pass
 
 class Genetic:
     def __init__(self,
                  shape,
                  pop_size,
                  fitf,
+
                  save=None,
                  save_interval=50,
                  save_hist=True,
-                 sel_top=0.5,
-                 sel_rand=0.3,
-                 sel_mut=0.6,
-                 prob_cross=0.5,
-                 prob_mut=0.7,
-                 mut_range=(-1,1),
+
+                 selection_args=None,
+                 cross_args=None,
+                 mutate_args=None,
+
                  activf=sigmoid,
                  opt_max=True,
                  parallelise=False):
         """
-        Evolve Neural Networks to optimise a given function ('fitness function')
+        Evolve Neural Networks to optimise a given function ('fitness function').
+        Can override exposed methods.
+
         :param shape: shape of Neural Networks (list of num neurons in each layer). Can be `None` if loading.
         :param pop_size: number of NNs in population Can be `None` if loading.
         :param fitf: fitness function. Corresponding NN will be passed as parameter. Should output fitness.
+
         :param save: model saving location
         :param save_interval: amount of generations between saves
         :param save_hist: whether to store best NNs for each key generation
-        :param sel_top: Num top agents to be selected for the next generation per step. Fraction of pop_size.
-        :param sel_rand: Num agents to be randomly selected for the next generation per step. Fraction of pop_size
-        :param sel_mut: Num agents to be mutated per step. Fraction of pop_size
-        :param prob_cross: During crossing, prob for a given gene to be crossed. 0-1 (Cross frequency)
-        :param prob_mut: During mutation, prob for a given gene to be mutated. 0-1 (Mutation frequency)
-        :param mut_range: (Tuple) Mutation range (Mutation amount)
+
+        :param selection_args: arguments passed to selection method
+        :param cross_args: arguments passed to cross method
+        :param mutate_args: arguments passed to mutate method
+
         :param activf: activation function for underlying NNs (default: sigmoid)
         :param opt_max: whether to maximise fitf or to minimise it
-        :param parallelise: whether to parallelise (multithread) evaluation of NNs (execution of fitfs)
+        :param parallelise: whether to parallelise (multithread) evaluation of NNs (execution of agents)
         """
 
-        if sel_top+sel_rand>=1.0:
-            raise ValueError('sel_top + sel_rand cannot sum to 1.0 because otherwise no children agents will be '
-                             'in next generation')
+        if selection_args is None:
+            selection_args = {
+                'ptop': 0.1,
+                'prand': 0.1
+            }
+        if cross_args is None:
+            cross_args = {}
+        if mutate_args is None:
+            mutate_args = {}
 
         self.shape = shape
         self.pop_size = pop_size
         self.fitf = fitf
+
         self.save = save
         self.save_interval = save_interval
         self.save_hist = save_hist
-        self.sel_top = sel_top
-        self.sel_rand = sel_rand
-        self.sel_mut = sel_mut
-        self.prob_cross = prob_cross
-        self.prob_mut = prob_mut
-        self.mut_range = mut_range
+
+        self.selection_args = selection_args
+        self.cross_args = cross_args
+        self.mutate_args = mutate_args
+
         self.activf = activf
         self.opt_max = opt_max
         self.parallelise = parallelise
 
         self.population = []
         self.gen_num = 0
+        self.__fit_hist = []
 
         # init population
         for i in range(self.pop_size):
@@ -187,44 +203,6 @@ class Genetic:
                                for x in data['population']]
         if DEBUG: print('Loaded from save')
 
-    def next_pop(self):
-        """
-        select agents to survive to next generation
-        :return:
-        """
-        next_pop = []
-
-        # select specified no of top agents
-        topn = math.floor(self.pop_size*self.sel_top)
-        for i in range(topn):
-            next_pop.append(copy.deepcopy(self.population.pop(0)))
-
-        # randomly select specified no of agents
-        for i in range(math.floor(self.pop_size*self.sel_rand)):
-            next_pop.append(copy.deepcopy(self.population.pop(random.randint(0,len(self.population)-1))))
-
-        return next_pop
-
-    def cross(self, parent1, parent2):
-        """
-        create child agent from parent agents
-        """
-        child = copy.deepcopy(parent1)
-
-        # cross weights
-        for i, weights in enumerate(parent2.net.weights):
-            for j, weight in enumerate(parent2.net.weights[i]):
-                if random.random() < self.prob_cross:
-                    child.net.weights[i][j] = weight
-
-        # cross biases
-        for i, biases in enumerate(parent2.net.biases):
-            for j, bias in enumerate(parent2.net.biases[i]):
-                if random.random() < self.prob_cross:
-                    child.net.biases[i][j] = bias
-
-        return child
-
     def __sort(self):
         self.population.sort(key=lambda agent: agent.fitness, reverse=self.opt_max)
 
@@ -249,63 +227,197 @@ class Genetic:
 
         self.__sort()
 
+    @staticmethod
+    def select(pop:List[Agent],**kwargs)->List[Agent]:
+        """
+        select agents to survive to next generation
+        :param pop: ordered current population
+        :return: intermediate population
+        """
+        num_top = 0
+        num_rand = 0
+
+        if 'ptop' in kwargs:
+            num_top = math.floor(len(pop)*float(kwargs['ptop']))
+        if 'prand' in kwargs:
+            num_rand = math.floor(len(pop)*float(kwargs['prand']))
+        if 'top' in kwargs:
+            if num_top != 0:
+                warnings.warn('Overriding ptop parameter', GeneticWarning)
+            num_top = kwargs['top']
+        if 'rand' in kwargs:
+            if num_rand != 0:
+                warnings.warn('Overriding prand parameter', GeneticWarning)
+            num_rand = kwargs['rand']
+
+        if num_top+num_rand<2:
+            raise ValueError('Cannot select less than 2 agents for intermediary population')
+        if num_top+num_rand==len(pop):
+            warnings.warn('With the current selection params, recombination will be skipped as'
+                          ' the intermediary population size will be equal to the target population size',
+                          GeneticWarning)
+        if num_rand+num_rand>len(pop):
+            raise ValueError('Population not big enough for selection with current selection params')
+
+        ipop = []
+
+        # top agents
+        for i in range(num_top):
+            ipop.append(pop.pop(0))
+
+        # rand agents
+        for i in range(num_rand):
+            ipop.append(pop.pop(random.randint(0,len(pop)-1)))
+
+        return ipop
+
+    @staticmethod
+    def cross(parent1:Agent, parent2:Agent, **kwargs)->List[Agent]:
+        """
+        create children agents from parent agents
+        :return: list of children agents (pref: 2)
+        """
+        prob = 0.6
+        bias_prob = prob
+        cross_biases = True
+
+        if 'prob' in kwargs:
+            prob = kwargs['prob']
+            bias_prob = prob
+        if 'bias_prob' in kwargs:
+            bias_prob = kwargs['bias_prob']
+        if 'cross_biases' in kwargs:
+            cross_biases = kwargs['cross_biases']
+
+        child1 = Network(parent1.net.shape,parent1.net.activf)
+        child2 = Network(parent1.net.shape,parent1.net.activf)
+
+        # cross weights
+        for i, weights in enumerate(parent1.net.weights):
+            for j in range(len(weights)):
+                if random.random()<prob:
+                    # swap
+                    child1.weights[i][j] = parent2.net.weights[i][j]
+                    child2.weights[i][j] = parent1.net.weights[i][j]
+                else:
+                    # don't swap
+                    child1.weights[i][j] = parent1.net.weights[i][j]
+                    child2.weights[i][j] = parent2.net.weights[i][j]
+
+        if cross_biases:
+            # cross biases
+            for i, biases in enumerate(parent1.net.biases):
+                for j in range(len(biases)):
+                    if random.random()<bias_prob:
+                        # swap
+                        child1.biases[i][j] = parent2.net.biases[i][j]
+                        child2.biases[i][j] = parent1.net.biases[i][j]
+                    else:
+                        # don't swap
+                        child1.biases[i][j] = parent1.net.biases[i][j]
+                        child2.biases[i][j] = parent2.net.biases[i][j]
+
+        return [Agent(child1,parent1.fitf), Agent(child2,parent1.fitf)]
+
+    @staticmethod
+    def recombine(ipop:List[Agent], pop_size, cross_args=None)->List[Agent]:
+        """
+        recombine the intermediary population until population of specified size is formed
+        :return: next population
+        """
+        if len(ipop)<2:
+            raise ValueError('Intermediary population must be bigger than 2 for recombination')
+
+        next_pop = []
+
+        while len(next_pop) < pop_size:
+            children = Genetic.cross(ipop[0],ipop[1],**cross_args)
+
+            while len(next_pop) < pop_size and len(children)>0:
+                next_pop.append(children.pop())
+
+        return next_pop
+
+    @staticmethod
+    def mutate(pop:List[Agent], **kwargs)->List[Agent]:
+        """
+        mutate the given population
+        """
+        selp = 1.0
+        prob = 0.3
+        bias_prob = prob
+        mutate_biases = True
+        amount = 2
+        bias_amount = amount
+
+        if 'selp' in kwargs:
+            selp = kwargs['selp']
+        if 'prob' in kwargs:
+            prob = kwargs['prob']
+            bias_prob = prob
+        if 'bias_prob' in kwargs:
+            bias_prob = kwargs['bias_prob']
+        if 'mutate_biases' in kwargs:
+            mutate_biases = kwargs['mutate_biases']
+        if 'amount' in kwargs:
+            amount = kwargs['amount']
+            bias_prob = amount
+        if 'bias_amount' in kwargs:
+            bias_amount = kwargs['bias_amount']
+
+        ret_pop = []
+        num = math.floor(len(pop)*selp)
+
+        for _ in range(num):
+            agent = pop.pop(random.randint(0,len(pop)-1))
+
+            # mutate weights
+            for i in range(len(agent.net.weights)):
+                for j in range(len(agent.net.weights[i])):
+                    if random.random() < prob:
+                        # mutate
+                        agent.net.weights[i][j]+=random.uniform(-1*amount,amount)
+
+            if mutate_biases:
+                # mutate biases
+                for i in range(len(agent.net.biases)):
+                    for j in range(len(agent.net.biases[i])):
+                        if random.random() < bias_prob:
+                            # mutate
+                            agent.net.biases[i][j] += random.uniform(-1*bias_amount, bias_amount)
+
+            ret_pop.append(agent)
+
+        return ret_pop
+
     def step(self):
         self.__evaluate()
-        if DEBUG: print('['+str(self.gen_num)+'] Fit: '+str(self.population[0].fitness)+
-                        ' Stdv: '+str(statistics.stdev([x.fitness for x in self.population])))
 
-        fit_plots.append(self.population[0].fitness)
-        if len(fit_plots)>50:
-            del fit_plots[0]
-        plt.clf()
-        plt.plot(fit_plots,color='red')
-        plt.pause(0.05)
-        plt.draw()
+        if DEBUG:
+            try:
+                print('['+str(self.gen_num)+'] Fit: '+str(self.population[0].fitness)+
+                      ' Stdv: '+str(statistics.stdev([x.fitness for x in self.population])))
+            except AssertionError: pass
 
-        self.population=self.next_pop()
+            if PLOT:
+                self.__fit_hist.append(self.population[0].fitness)
 
-        self.__sort()
-        # children generation
-        choice_buffer=copy.deepcopy(self.population)
-        children_buffer=[]
-        for i in range(self.pop_size - len(self.population)):
-            # self.population.insert(1,self.cross(self.population[0],random.choice(self.population)))
-            # self.population.insert(0,self.cross(random.choice(self.population),random.choice(self.population)))
-            if len(choice_buffer)<=0:
-                choice_buffer = copy.deepcopy(self.population) # more new babies than selected
-                # (warning: inbread: may be bad for variation)
+                if len(self.__fit_hist) > 50:
+                    del self.__fit_hist[0]
 
-            popped = random.choice(choice_buffer)
-            choice_buffer.remove(popped)
+                plt.clf()
+                plt.xlabel('generation')
+                plt.ylabel('fitness')
+                # plt.plot(smooth(self.__fit_hist,2), color='red')
+                plt.plot(self.__fit_hist, color='red')
+                plt.pause(0.05)
+                plt.draw()
 
-            for j in range(10): # 10 attempts
-                child = self.cross(self.population[0],popped)
-                if child.evaluate()>popped.fitness: # todo generalise
-                    children_buffer.append(child)
-                    break
-                elif j==9:
-                    children_buffer.append(child)
-                    break
-        self.population.extend(children_buffer)
-        # print(len(self.population))
-
-        # weights mutation
-        for no in range(math.floor(self.pop_size*self.sel_mut)):
-            mutant = copy.deepcopy(random.choice(self.population))
-            for i, weights in enumerate(mutant.net.weights):
-                for j, weight in enumerate(mutant.net.weights[i]):
-                    if random.random() < self.prob_mut:
-                        mutant.net.weights[i][j]+=random.uniform(*self.mut_range)
-            self.population.pop(random.randint(0,len(self.population)-1))
-            self.population.append(mutant)
-
-        # biases mutation
-        for no in range(math.floor(self.pop_size * self.sel_mut)):
-            mutant = random.choice(self.population)
-            for i, biases in enumerate(mutant.net.biases):
-                for j, bias in enumerate(mutant.net.biases[i]):
-                    if random.random() < self.prob_mut:
-                        mutant.net.biases[i][j]+=random.uniform(*self.mut_range)
+        self.population = self.mutate(
+                self.recombine(
+                    self.select(self.population,**self.selection_args),
+                    self.pop_size,
+                    self.cross_args), **self.mutate_args)
 
         if self.save is not None:
             if self.gen_num % self.save_interval == 0:
@@ -316,5 +428,3 @@ class Genetic:
                         f.write(self.population[0].net.serialise())
 
         self.gen_num+=1
-
-# todo maybe NN impl itself bad because never really 2/3

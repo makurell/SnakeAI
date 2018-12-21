@@ -1,0 +1,6 @@
+Before, not converging enough because not enough 'inbreeding'
+after implement that + improve get_senses, much progress
+achieves fit around 3000 (good) <-- tactic of scrolling across while moving down and left where appropriate to eat food
+18/12: Notice only really moves down or left: randomise snake starting position and retrain (o-p) to try combat
+18/12 11:28pm: If not eat food for last 100 steps, kill snake (pa) = faster training too
+19/12 01:03am: r815 kill thresh to 25 (maybe too harsh, need to see)
