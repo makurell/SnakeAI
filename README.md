@@ -14,9 +14,9 @@ Feed Forward Neural Networks evolving to play Snake
 ## Usage
 You need to have Python 3 installed
 
-Install numpy
+Install numpy and pygame
 ```
-python3 -m pip install numpy
+python3 -m pip install numpy pygame
 ```
 
 Clone this repository
