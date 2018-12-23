@@ -11,3 +11,5 @@ achieves fit around 3000 (good) <-- tactic of scrolling across while moving down
 21/12 04:36am: trained overnight (j). Terrible performance
 21/12 03:27pm: rewrote senses+fitness (k)
 21/12 03:59pm: REALISED I WAS CROSSING/MUTATING WRONG because accessing weights/biases of matrix incorrectly (forgot it was a list of matricies). l
+21/12 04:17pm: good progress m using exponential fitness function
+21/12 04:33pm: good progress n using fitf5

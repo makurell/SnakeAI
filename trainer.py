@@ -1,8 +1,4 @@
-import random
-from typing import List
-
 import neuroga as ng
-import numpy as np
 import snake
 
 
@@ -80,41 +76,54 @@ def fitf4(net):
         i+=1
 
     avg_eat_timing = sum(field.eat_timings) / float(len(field.eat_timings))
-    return max(field.eaten*300, field.eaten**3) - avg_eat_timing*50 + i**2
+    return max(field.eaten*300, 2*field.eaten**3) - avg_eat_timing*50 + i**2
 
-def mutate(pop:List[ng.Agent], **kwargs)->List[ng.Agent]:
-    for agent in pop:
-        for i, weights in enumerate(agent.net.weights):
-            for j, weight in enumerate(weights):
-                for k, w in enumerate(weight):
-                    # print(w)
-                    if random.random() < 0.6:
-                        # mutate
-                        new = w + np.random.normal()/5
-                        # print(new)
-                        new = max(min(new,1),-1)
-                        agent.net.weights[i][j][k] = new
+def fitf5(net):
+    field = snake.Field()
+    live_time = 200
+    i = 0
 
-                        # agent.net.weights[i][j] = min(
-                        #     agent.net.weights[i][j], 1
-                        # )
-                        # agent.net.weights[i][j] = max(
-                        #     agent.net.weights[i][j], -1
-                        # )
+    while live_time > 0:
+        if field.game_over: break
+        output = net.forward(field.get_senses())
+        field.snake_dir = output.argmax()
+        if field.step():
+            live_time += 100
+        live_time -= 1
+        i += 1
 
-        agent.net.biases = [np.zeros((i,1)) for i in agent.net.shape[1:]]
-    return pop
+    # avg_eat_timing = sum(field.eat_timings) / float(len(field.eat_timings))
+    if field.eaten < 10:
+        return i*i * 2**field.eaten
+    else:
+        return i*i * 2**10 * (field.eaten-9)
 
+def fitf6(net):
+    field = snake.Field()
+    steps_limit = 20000
+
+    i=0
+    for i in range(steps_limit):
+        if field.game_over: break
+        output = net.forward(field.get_senses())
+        # print(output)
+        field.snake_dir = output.argmax()
+        field.step()
+
+        if field.eat_timings[-1]>80: # not really going for the food = kill
+            break
+
+    avg_eat_timing = sum(field.eat_timings) / float(len(field.eat_timings))
+    return max(100*field.eaten, 2**field.eaten) - avg_eat_timing*50 + max(200*i,i**2)
 
 genetic = ng.Genetic([24,16,4],
                      400,
-                     fitf3,
-                     save='models/m/',
+                     fitf5,
+                     save='models/p/',
                      save_interval=5,
                      save_hist=True,
                      selection_args={
                          'top':5,
-                         # 'rand':1,
                      },
                      cross_args={
                        # 'cross_biases':False
@@ -123,13 +132,9 @@ genetic = ng.Genetic([24,16,4],
                          # 'sel':0.9,
                          # 'rate':0.6,
                       },
-                     opt_max=True, # do NOt change
+                     opt_max=True,
                      activf=ng.sigmoid
                      )
 
-# genetic.mutate = mutate
-
-no=0
 while True:
     genetic.step()
-    no+=1

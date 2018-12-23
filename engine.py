@@ -8,7 +8,7 @@ COL_BACK2 = (59,59,58)
 COL_FOOD = (242,95,92)
 COL_SNAKE = (255,224,102)
 
-with open('models/l/35.json','r') as f:
+with open('models/n/50.json','r') as f:
     net = neuroga.Network([24,16,4],saved=f.read())
 
 class Engine:

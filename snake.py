@@ -1,7 +1,5 @@
 import copy
-import math
 import random
-import time
 import numpy as np
 
 class Pos:
@@ -194,55 +192,3 @@ class Field:
 
         # print(data)
         return data
-
-    # def get_senses(self):
-    #     head = self.snake_arr[-1]
-    #
-    #     dirs_no = 8
-    #     # dir_names = '↖↑↗→↘↓↙←'
-    #
-    #     inf = math.ceil((self.width ** 2 + self.height ** 2) ** (1 / 2)) # biggest possib distance is hyp
-    #
-    #     data = [] # list of tuples: dist, id (nothing, body, food, wall) [index corresp to dir index]
-    #
-    #     # init data
-    #     for i in range(dirs_no):
-    #         data.append((inf,0))
-    #
-    #     # data[1]=(head.y+1,3)
-    #     # data[3]=(self.width-head.x,3)
-    #     # data[5]=(self.height-head.y,3)
-    #     # data[7]=(head.x+1,3)
-    #
-    #     # add food to data if sight not blocked
-    #     dist, diri = get_dir(head,self.food_pos,dirs_no)
-    #     if dist<data[diri][0]:
-    #         data[diri] = (dist,2)
-    #     # print((dist,dir_names[diri]))
-    #
-    #     wall_blocks = []
-    #     for i in range(self.width):
-    #         wall_blocks.append(Pos(i,-1))
-    #         wall_blocks.append(Pos(i,self.height))
-    #     for i in range(self.height):
-    #         wall_blocks.append(Pos(-1,i))
-    #         wall_blocks.append(Pos(self.width,i))
-    #
-    #     for wall in wall_blocks:
-    #         dist, diri = get_dir(head, wall, dirs_no)
-    #         if dist < data[diri][0]:
-    #             data[diri] = (dist, 3)
-    #
-    #     for bpart in self.snake_arr[:-1]: # exclude head
-    #         dist, diri = get_dir(head,bpart,dirs_no)
-    #         # add to data if sight not blocked (smaller dist than whatever currently in that dir)
-    #         if dist < data[diri][0]:
-    #             data[diri] = (dist, 1)
-    #
-    #     # print(data)
-    #
-    #     sense_data = []
-    #     for dat in data:
-    #         sense_data.extend([float(x) for x in format(dat[1],'02b')]) # ID encoded as 2-bit bin
-    #         sense_data.append(1 - (dat[0] / inf)) # normalised dist value
-    #     return sense_data
